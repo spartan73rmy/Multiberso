@@ -29,8 +29,9 @@ namespace Multiberso
             InitializeComponent();
 
             //Dibuja grafico 
-            DrawChart();
             FillDataGridView();
+            DrawChart();
+
         }
         private void BtnPrintImage_Click(object sender, EventArgs e)
         {
@@ -71,11 +72,20 @@ namespace Multiberso
 
         private void BtnPrint_Click(object sender, EventArgs e)
         {
-            var pd = new System.Drawing.Printing.PrintDocument();
-            pd.PrintPage += new PrintPageEventHandler(PrintChart);
-            PrintDialog pdi = new PrintDialog();
-            pdi.Document = pd;
-            pdi.Document.Print();
+            try
+            {
+                var pd = new System.Drawing.Printing.PrintDocument();
+                pd.PrintPage += new PrintPageEventHandler(PrintChart);
+                PrintDialog pdi = new PrintDialog();
+                pdi.Document = pd;
+                pdi.Document.Print();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "No se puede sobreescribir el archivo, cierrelo o elija otro nombre", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Console.WriteLine(ex.Message);
+            }
         }
         private void doc_PrintPage(object sender, System.Drawing.Printing.PrintPageEventArgs e)
         {
@@ -86,7 +96,7 @@ namespace Multiberso
             e.Graphics.DrawString("Multiberso", printFont, Brushes.Black, 60, 10);
 
             //Dibuja el logo 
-            Bitmap image = new Bitmap(@"C:\Users\spart\source\repos\Multiberso\MainWindowsIco.jpeg");
+            Bitmap image = new Bitmap(@"C:\Users\spart\Desktop\Source\Multiberso\MainWindowsIco.jpeg");
             e.Graphics.DrawImage(image, new Rectangle(10, 10, 32, 32));
 
             //Crea BitMap del panel, el rectangulo que contiene y dibuja el panel
@@ -105,7 +115,7 @@ namespace Multiberso
             ev.Graphics.DrawString("Multiberso", printFont, Brushes.Black, 60, 10);
 
             //Dibuja el logo 
-            Bitmap image = new Bitmap(@"C:\Users\spart\source\repos\Multiberso\MainWindowsIco.jpeg");
+            Bitmap image = new Bitmap(@"C:\Users\spart\Desktop\Source\Multiberso\MainWindowsIco.jpeg");
             ev.Graphics.DrawImage(image, new Rectangle(10, 10, 32, 32));
 
             //Crear el rectangulo que contiene y dibuja el chart
@@ -144,6 +154,9 @@ namespace Multiberso
                 CellTemplate = cell
             });
 
+            Dictionary<int, List<string>> rows = new Dictionary<int, List<string>>();
+
+            bool justOnce = true;
             foreach (string Serie in material)
             {
                 dgvData.Columns.Add(new DataGridViewColumn()
@@ -154,17 +167,31 @@ namespace Multiberso
                     CellTemplate = cell
                 });
 
-                string[] x = indicadores.Where(m => m.Parametro.Equals(Serie)).Select(m => m.Nombre).ToArray();
+                if (justOnce)
+                {
+                    string[] x = indicadores.Where(m => m.Parametro.Equals(Serie)).Select(m => m.Nombre).ToArray();
+                    for (int i = 0; i < x.Length; i++)
+                    {
+                        List<string> temp = new List<string>();
+                        temp.Add(x[i]);
+                        rows.Add(i, temp);
+                    }
+                    justOnce = false;
+                }
+
                 double[] y = indicadores.Where(m => m.Parametro.Equals(Serie)).
                     Select(m => (m.Inverso) ?
-                      ((double)(m.Valor * esc) / (double)(m.Max))
-                    : (esc - (double)(m.Valor * esc) / +(double)(m.Max))).ToArray();
+                    ((double)(m.Valor * esc) / (double)(m.Max)) : (esc - (double)(m.Valor * esc) / +(double)(m.Max))).ToArray();
 
-                for (int i = 0; i < x.Length && i < y.Length; i++)
+                for (int i = 0; i < y.Length; i++)
                 {
-                    dgvData.Rows.Add(x[i].ToString(), y[i].ToString("0.00"));
+                    rows[i].Add(y[i].ToString("0.00"));
                 }
             }
+
+            for (int i = 0; i < rows.Keys.Count; i++)
+            { dgvData.Rows.Add(rows[i].ToArray()); }
+
         }
         private void DrawChart()
         {
